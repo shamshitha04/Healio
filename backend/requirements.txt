@@ -1,0 +1,12 @@
+fastapi>=0.115.6,<1.0.0
+uvicorn[standard]>=0.34.0,<0.50.0
+groq>=0.13.1,<1.0.0
+langchain>=0.3.13,<2.0.0
+langchain-community>=0.3.13,<1.0.0
+langchain-chroma>=1.0.0,<2.0.0
+chromadb>=1.5.9,<2.0.0
+pydantic>=2.10.4,<3.0.0
+python-dotenv>=1.0.1,<2.0.0
+python-multipart>=0.0.20,<1.0.0
+pypdf>=5.1.0,<7.0.0
+pytest>=8.3.4,<9.0.0

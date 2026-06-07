@@ -1,0 +1,10 @@
+Source-informed local summary for Healio educational retrieval. References consulted: MedlinePlus first aid topics and CDC emergency guidance.
+
+General first-aid guidance: urgent symptoms should be handled by local emergency services or a qualified clinician. Examples include chest pain, trouble breathing, signs of stroke, severe bleeding, unconsciousness, poisoning, seizures, severe allergic reaction, or suicidal thoughts.
+
+For bleeding, apply steady pressure with clean material if it is safe to do so, keep the person still, and seek emergency help when bleeding is severe, does not stop, or follows a serious injury.
+
+For burns, cool the burn with cool running water when appropriate, avoid applying ice directly, and seek professional care for large, deep, chemical, electrical, facial, hand, foot, genital, or joint burns.
+
+For fever or common minor symptoms, encourage fluids and rest when appropriate, watch for worsening symptoms, and seek medical advice for very young children, persistent fever, confusion, dehydration, stiff neck, breathing problems, or symptoms that feel severe.
+

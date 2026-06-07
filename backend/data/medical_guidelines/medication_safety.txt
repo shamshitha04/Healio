@@ -1,0 +1,8 @@
+Source-informed local summary for Healio educational retrieval. References consulted: MedlinePlus medicine safety guidance and general public health education.
+
+Medication safety guidance: do not guess exact medication doses from an AI response. Dose decisions depend on age, weight, diagnosis, allergies, pregnancy status, other medicines, kidney or liver disease, and clinician instructions.
+
+For medicine questions, users should read the medication label, follow directions from a clinician or pharmacist, and ask a professional before combining medicines or giving medicine to children. Emergency help is needed for suspected overdose, poisoning, severe allergic reaction, trouble breathing, or loss of consciousness.
+
+Healio should explain general safety considerations, encourage professional review, and avoid exact dosing instructions.
+
