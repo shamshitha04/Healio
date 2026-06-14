@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.ai.groq_client import generate_medical_response, generate_medical_summary
+from app.ai.groq_client import generate_medical_response, generate_medical_summary, generate_quick_summary
 from app.models import ChatRequest, ChatResponse, EmergencyResponse, HealthResponse, UploadResponse
 from app.rag import retrieve_context
 from app.safety import detect_emergency, scrub_pii
@@ -48,6 +48,13 @@ async def chat(request: ChatRequest) -> ChatResponse | EmergencyResponse:
     answer = generate_medical_response(scrubbed.text, context)
 
     return ChatResponse(message=answer, redacted=scrubbed.redacted, sources_used=bool(context))
+
+
+@app.post("/api/summarize")
+async def summarize(request: ChatRequest) -> ChatResponse:
+    cleaned_message = request.message.strip()
+    summary = generate_quick_summary(cleaned_message)
+    return ChatResponse(message=summary, redacted=False, sources_used=False)
 
 
 @app.post("/api/upload")

@@ -14,6 +14,7 @@ import {
   Send,
   ShieldCheck,
   Sparkles,
+  Trash2,
   UploadCloud,
   UserRound,
 } from "lucide-react";
@@ -106,6 +107,20 @@ async function postUpload(file) {
   return response.json();
 }
 
+async function postSummarize(message) {
+  const response = await fetch(`${API_BASE_URL}/api/summarize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Healio could not summarize that answer right now.");
+  }
+
+  return response.json();
+}
+
 function App() {
   const [chatState, setChatState] = useState(loadChatState);
   const [draft, setDraft] = useState("");
@@ -169,6 +184,33 @@ function App() {
     setChatState((current) => ({ ...current, activeChatId: chatId }));
   }
 
+  function deleteChat(chatId, event) {
+    event.stopPropagation();
+    if (isBusy) return;
+
+    setChatState((current) => {
+      const nextSessions = current.chatSessions.filter((session) => session.id !== chatId);
+      let nextActiveId = current.activeChatId;
+
+      if (current.activeChatId === chatId) {
+        if (nextSessions.length > 0) {
+          nextActiveId = nextSessions[0].id;
+        } else {
+          const session = createChatSession();
+          return {
+            chatSessions: [session],
+            activeChatId: session.id,
+          };
+        }
+      }
+
+      return {
+        chatSessions: nextSessions,
+        activeChatId: nextActiveId,
+      };
+    });
+  }
+
   async function submitMessage(nextMessage = draft) {
     const text = nextMessage.trim();
     if (!text || isBusy) return;
@@ -218,6 +260,70 @@ function App() {
     }
   }
 
+  async function summarizeMessage(messageId) {
+    const msg = messages.find((m) => m.id === messageId);
+    if (!msg || isBusy) return;
+
+    setChatState((current) => {
+      const nextSessions = current.chatSessions.map((session) => {
+        if (session.id !== current.activeChatId) return session;
+        const nextMessages = session.messages.map((m) => {
+          if (m.id !== messageId) return m;
+          return { ...m, isSummarizing: true };
+        });
+        return { ...session, messages: nextMessages };
+      });
+      return { ...current, chatSessions: nextSessions };
+    });
+
+    try {
+      const result = await postSummarize(msg.text);
+      setChatState((current) => {
+        const nextSessions = current.chatSessions.map((session) => {
+          if (session.id !== current.activeChatId) return session;
+          const nextMessages = session.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            return {
+              ...m,
+              summary: result.message,
+              showSummary: true,
+              isSummarizing: false,
+            };
+          });
+          return { ...session, messages: nextMessages };
+        });
+        return { ...current, chatSessions: nextSessions };
+      });
+    } catch (caughtError) {
+      setError(caughtError.message);
+      setChatState((current) => {
+        const nextSessions = current.chatSessions.map((session) => {
+          if (session.id !== current.activeChatId) return session;
+          const nextMessages = session.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            return { ...m, isSummarizing: false };
+          });
+          return { ...session, messages: nextMessages };
+        });
+        return { ...current, chatSessions: nextSessions };
+      });
+    }
+  }
+
+  function toggleSummary(messageId) {
+    setChatState((current) => {
+      const nextSessions = current.chatSessions.map((session) => {
+        if (session.id !== current.activeChatId) return session;
+        const nextMessages = session.messages.map((m) => {
+          if (m.id !== messageId) return m;
+          return { ...m, showSummary: !m.showSummary };
+        });
+        return { ...session, messages: nextMessages };
+      });
+      return { ...current, chatSessions: nextSessions };
+    });
+  }
+
   return (
     <main className="min-h-screen bg-clinic-cream text-clinic-ink">
       <div className="mx-auto grid min-h-screen w-full max-w-7xl grid-cols-1 gap-5 px-4 py-4 sm:px-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:px-8">
@@ -249,6 +355,7 @@ function App() {
               chatSessions={chatState.chatSessions}
               isBusy={isBusy}
               onSelectChat={selectChat}
+              onDeleteChat={deleteChat}
             />
 
             <div className="mt-6 space-y-3">
@@ -322,7 +429,13 @@ function App() {
             <div className="flex min-h-[540px] flex-col">
               <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-5">
                 {messages.map((message) => (
-                  <MessageBubble key={message.id} message={message} />
+                  <MessageBubble
+                    key={message.id}
+                    message={message}
+                    isBusy={isBusy}
+                    onSummarize={summarizeMessage}
+                    onToggleSummary={toggleSummary}
+                  />
                 ))}
                 {isChatLoading && <LoadingBubble label="Thinking carefully" />}
               </div>
@@ -387,7 +500,7 @@ function App() {
   );
 }
 
-function ChatHistory({ activeChatId, chatSessions, isBusy, onSelectChat }) {
+function ChatHistory({ activeChatId, chatSessions, isBusy, onSelectChat, onDeleteChat }) {
   const sortedSessions = [...chatSessions].sort((left, right) => right.updatedAt - left.updatedAt);
 
   return (
@@ -401,23 +514,33 @@ function ChatHistory({ activeChatId, chatSessions, isBusy, onSelectChat }) {
           const isActive = session.id === activeChatId;
 
           return (
-            <button
-              key={session.id}
-              type="button"
-              onClick={() => onSelectChat(session.id)}
-              disabled={isBusy}
-              className={`w-full rounded-lg px-3 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
-                isActive
-                  ? "bg-clinic-mint text-emerald-950"
-                  : "bg-white/75 text-slate-700 hover:bg-white"
-              }`}
-              title={session.title}
-            >
-              <span className="block truncate text-sm font-black">{session.title}</span>
-              <span className="mt-0.5 block text-xs font-semibold opacity-70">
-                {formatChatTime(session.updatedAt)}
-              </span>
-            </button>
+            <div key={session.id} className="group relative flex items-center w-full">
+              <button
+                type="button"
+                onClick={() => onSelectChat(session.id)}
+                disabled={isBusy}
+                className={`w-full rounded-lg pl-3 pr-10 py-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isActive
+                    ? "bg-clinic-mint text-emerald-950"
+                    : "bg-white/75 text-slate-700 hover:bg-white"
+                }`}
+                title={session.title}
+              >
+                <span className="block truncate text-sm font-black">{session.title}</span>
+                <span className="mt-0.5 block text-xs font-semibold opacity-70">
+                  {formatChatTime(session.updatedAt)}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={(e) => onDeleteChat(session.id, e)}
+                disabled={isBusy}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-black/5 opacity-0 group-hover:opacity-100 focus:opacity-100 transition disabled:cursor-not-allowed disabled:opacity-60"
+                title="Delete chat"
+              >
+                <Trash2 size={16} />
+              </button>
+            </div>
           );
         })}
       </div>
@@ -443,10 +566,13 @@ function normalizeAssistantMessage(result) {
     redacted: Boolean(result.redacted),
     sourcesUsed: Boolean(result.sources_used),
     matchedTerms: result.matched_terms || [],
+    summary: "",
+    showSummary: false,
+    isSummarizing: false,
   };
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, isBusy, onSummarize, onToggleSummary }) {
   const isUser = message.role === "user";
   const isEmergency = message.type === "emergency";
   const Icon = isUser ? UserRound : isEmergency ? AlertTriangle : Bot;
@@ -471,11 +597,45 @@ function MessageBubble({ message }) {
               : "border border-slate-200 bg-white text-slate-800"
         }`}
       >
-        <p className="whitespace-pre-wrap text-sm font-semibold leading-6 sm:text-base">{message.text}</p>
-        {!isUser && !isEmergency && (message.redacted || message.sourcesUsed) && (
-          <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-            {message.redacted && <span className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800">PII redacted</span>}
-            {message.sourcesUsed && <span className="rounded-lg bg-sky-50 px-2 py-1 text-sky-800">Local references</span>}
+        <p className="whitespace-pre-wrap text-sm font-semibold leading-6 sm:text-base">
+          {message.showSummary && message.summary ? message.summary : message.text}
+        </p>
+        {!isUser && !isEmergency && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2.5">
+            <div className="flex flex-wrap gap-2 text-xs font-black">
+              {message.redacted && <span className="rounded-lg bg-emerald-50 px-2 py-1 text-emerald-800">PII redacted</span>}
+              {message.sourcesUsed && <span className="rounded-lg bg-sky-50 px-2 py-1 text-sky-800">Local references</span>}
+              {message.showSummary && message.summary && <span className="rounded-lg bg-amber-50 px-2 py-1 text-amber-800">Quick Summary</span>}
+            </div>
+
+            <div className="flex items-center text-xs font-black">
+              {message.isSummarizing ? (
+                <span className="flex items-center gap-1 text-slate-500">
+                  <Loader2 className="animate-spin" size={12} />
+                  Summarizing...
+                </span>
+              ) : message.summary ? (
+                <button
+                  type="button"
+                  onClick={() => onToggleSummary(message.id)}
+                  disabled={isBusy}
+                  className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-200 transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Sparkles size={12} className="text-amber-500" />
+                  {message.showSummary ? "Complete Description" : "Quick Summary"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSummarize(message.id)}
+                  disabled={isBusy}
+                  className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-700 hover:bg-slate-200 transition disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  <Sparkles size={12} className="text-amber-500" />
+                  Quick Summary
+                </button>
+              )}
+            </div>
           </div>
         )}
         {isEmergency && message.matchedTerms.length > 0 && (

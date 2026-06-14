@@ -3,7 +3,7 @@ from base64 import b64encode
 
 from groq import Groq
 
-from app.ai.prompts import build_chat_messages, build_summary_messages
+from app.ai.prompts import build_chat_messages, build_summary_messages, build_quick_summary_messages
 
 
 DISCLAIMER = "Healio is educational only and not a replacement for a doctor or emergency care."
@@ -32,6 +32,15 @@ def generate_medical_response(question: str, context: str) -> str:
 def generate_medical_summary(text: str, context: str) -> str:
     messages = build_summary_messages(text=text, context=context)
     return _complete(messages, fallback=_fallback_summary(text, context))
+
+
+def generate_quick_summary(text: str) -> str:
+    messages = build_quick_summary_messages(text=text)
+    fallback = (
+        "Potential symptoms/conditions discussed. Please consult a clinician "
+        f"for proper evaluation and diagnosis. {DISCLAIMER}"
+    )
+    return _complete(messages, fallback=fallback)
 
 
 def extract_text_from_image(content: bytes, content_type: str) -> str:

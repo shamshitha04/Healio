@@ -36,12 +36,37 @@ SUMMARY_PROMPT = ChatPromptTemplate.from_messages(
 )
 
 
+QUICK_SYSTEM_PROMPT = """You are a precise medical text summarizer.
+Provide a very short summary of the text in exactly 1 or 2 bullet points, under 30 words total.
+Focus only on:
+1. What condition or symptom is discussed.
+2. The most critical action or recommendation.
+
+Be direct, simple, and never include conversational filler or extra details. Do not exceed 2 bullet points or 30 words.
+"""
+
+
+QUICK_SUMMARY_PROMPT = ChatPromptTemplate.from_messages(
+    [
+        ("system", QUICK_SYSTEM_PROMPT),
+        (
+            "human",
+            "Summarize this text in 1-2 short bullet points (under 30 words total):\n{text}",
+        ),
+    ]
+)
+
+
 def build_chat_messages(question: str, context: str) -> list[dict[str, str]]:
     return _to_groq_messages(CHAT_PROMPT.format_messages(question=question, context=context))
 
 
 def build_summary_messages(text: str, context: str) -> list[dict[str, str]]:
     return _to_groq_messages(SUMMARY_PROMPT.format_messages(text=text, context=context))
+
+
+def build_quick_summary_messages(text: str) -> list[dict[str, str]]:
+    return _to_groq_messages(QUICK_SUMMARY_PROMPT.format_messages(text=text))
 
 
 def _to_groq_messages(messages: list) -> list[dict[str, str]]:
